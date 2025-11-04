@@ -8,21 +8,40 @@ pygame.init()
 # Window setup
 WIDTH, HEIGHT = 900, 600
 win = pygame.display.set_mode((WIDTH, HEIGHT), pygame.SWSURFACE)
-pygame.display.set_caption("Flanker Task")
+pygame.display.set_caption("Cognitive Science Experiment")
 
 FONT = pygame.font.Font(None, 120)
-TEXT = pygame.font.Font(None, 40)
+TEXT = pygame.font.Font(None, 38)
 
-# MODULE 1 (Letters)
-letter_targets = ["A", "B"]
-letter_neutral = "X"
+# --- MODULE DEFINITIONS ---
 
-# MODULE 2 (Shapes)
-shape_targets = ["★", "●"]
-shape_neutral = "◇"
+modules = [
+    {
+        "name": "Text-Based Module",
+        "left_group": ["A", "B"],
+        "right_group": ["C", "D"],
+        "neutral": ["X", "Y"]
+    },
+    {
+        "name": "Emoji Module",
+        "left_group": ["🙂", "😁"],
+        "right_group": ["🙁", "😞"],
+        "neutral": ["😶", "😑"]
+    },
+    {
+        "name": "Color-Shape Module",
+        "left_group": ["🔴", "🟥"],
+        "right_group": ["❤️", "♦️"],
+        "neutral": ["🔻", "🛑"]
+    },
+    {
+        "name": "Classic Shape Module",
+        "left_group": ["★"],
+        "right_group": ["●"],
+        "neutral": ["◇"]
+    }
+]
 
-# Key mapping for response
-# LEFT = choose first target, RIGHT = choose second target
 key_map = {pygame.K_LEFT: 0, pygame.K_RIGHT: 1}
 
 def draw_text(surface, text, font, color, x, y):
@@ -30,109 +49,162 @@ def draw_text(surface, text, font, color, x, y):
     rect = render.get_rect(center=(x, y))
     surface.blit(render, rect)
 
-def ask_user_info():
-    name = input("Enter participant name: ")
-    age = input("Enter participant age: ")
-    return name, age
+def instruction_screen():
+    instructions = [
+        "Instruction Manual",
+        "",
+        "Thank you for participating.",
+        "",
+        "The game has 4 tasks. Each task has:",
+        "1) Practice round (3 trials)",
+        "2) Experiment round (10 trials)",
+        "",
+        "Randomly, a RED DOT will appear. Please CLICK it.",
+        "",
+        "TEXT TASK:",
+        "If center is A/B -> Press LEFT    If C/D -> Press RIGHT",
+        "",
+        "EMOJI TASK:",
+        "🙂😁 -> LEFT    🙁😞 -> RIGHT",
+        "",
+        "SHAPE TASK:",
+        "🔴🟥 -> LEFT    ❤️♦️ -> RIGHT",
+        "",
+        "Press SPACE to begin..."
+    ]
 
-def run_task(targets, neutral, trials=2, attention_prob=0.2):
-    results = []
+    win.fill((255,255,255))
+    y = 50
+    for line in instructions:
+        draw_text(win, line, TEXT, (0,0,0), WIDTH//2, y)
+        y += 32
+    pygame.display.update()
 
-    for _ in range(trials):
-        # RANDOMLY DECIDE IF THIS TRIAL IS AN ATTENTION CHECK
-        attention_trial = (random.random() < attention_prob)
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                return
 
-        if attention_trial:
-            # ---- ATTENTION CHECK TRIAL ----
-            win.fill((255,255,255))
-            dot_x, dot_y = random.randint(100, WIDTH-100), random.randint(100, HEIGHT-100)
-            pygame.draw.circle(win, (255,0,0), (dot_x, dot_y), 20)
-            pygame.display.update()
+def module_header(name):
+    win.fill((255,255,255))
+    draw_text(win, name, TEXT, (0,0,0), WIDTH//2, HEIGHT//2)
+    draw_text(win, "Press SPACE to continue", TEXT, (0,0,0), WIDTH//2, HEIGHT//2+60)
+    pygame.display.update()
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                return
 
-            start_time = time.time()
-            clicked = False
-            rt = None
+def show_mapping(left_group, right_group):
+    win.fill((255,255,255))
+    draw_text(win, "Key Mapping", TEXT, (0,0,0), WIDTH//2, HEIGHT//2 - 60)
+    draw_text(win, f"LEFT ARROW = {left_group}", TEXT, (0,0,0), WIDTH//2, HEIGHT//2)
+    draw_text(win, f"RIGHT ARROW = {right_group}", TEXT, (0,0,0), WIDTH//2, HEIGHT//2 + 60)
+    draw_text(win, "Press SPACE to begin practice", TEXT, (0,0,0), WIDTH//2, HEIGHT//2+130)
+    pygame.display.update()
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                return
 
-            while time.time() - start_time < 3:  # 3 second window
-                for event in pygame.event.get():
-                    if event.type == pygame.MOUSEBUTTONDOWN:
-                        mx, my = pygame.mouse.get_pos()
-                        if (mx - dot_x)**2 + (my - dot_y)**2 <= 20**2:
-                            clicked = True
-                            rt = time.time() - start_time
-                            break
-
-            results.append(["ATTENTION_CHECK", "", clicked, clicked, rt])
-            time.sleep(0.4)
-            continue  # skip normal flanker logic, go to next trial
-
-        # ---- NORMAL FLANKER TRIAL ----
-        target_index = random.choice([0, 1])
-        target = targets[target_index]
-
-        condition = random.choice(["congruent", "incongruent", "neutral"])
-
-        if condition == "congruent":
-            flanker = target
-        elif condition == "incongruent":
-            flanker = targets[1 - target_index]
-        else:
-            flanker = neutral
-        
-        row = f"{flanker}   {flanker}   {target}   {flanker}   {flanker}"
-
-        # Display stimulus for 3 seconds
+def run_single_trial(left_group, right_group, neutral, record=False, results=None):
+    # random attention check (~20%)
+    if random.random() < 0.2:
         win.fill((255,255,255))
-        draw_text(win, row, FONT, (0,0,0), WIDTH//2, HEIGHT//2)
-        pygame.display.update()
-        time.sleep(3)
-
-        # Ask question
-        win.fill((255,255,255))
-        draw_text(win, "Which was in the middle?", TEXT, (0,0,0), WIDTH//2, HEIGHT//2 - 50)
-        draw_text(win, f"LEFT = {targets[0]}    RIGHT = {targets[1]}", TEXT, (0,0,0), WIDTH//2, HEIGHT//2 + 50)
+        x, y = random.randint(50, WIDTH-50), random.randint(50, HEIGHT-50)
+        pygame.draw.circle(win, (255,0,0), (x, y), 18)
         pygame.display.update()
 
-        start_time = time.time()
-        response = None
+        start = time.time()
+        clicked = False
         rt = None
 
-        while response is None:
+        while time.time() - start < 3:
             for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
-                    if event.key in (pygame.K_LEFT, pygame.K_RIGHT):
-                        response = key_map[event.key]
-                        rt = time.time() - start_time
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mx, my = pygame.mouse.get_pos()
+                    if (mx-x)**2 + (my-y)**2 <= 18**2:
+                        clicked = True
+                        rt = time.time() - start
+                        break
 
-        correct = (response == target_index)
-        results.append([target, condition, targets[response], correct, rt])
-        time.sleep(0.4)
+        if record:
+            results.append(["ATTENTION", "", clicked, clicked, rt])
+        return
 
-    return results
+    # --- NORMAL TRIAL ---
+    all_targets = left_group + right_group
+    target = random.choice(all_targets)
+    group_index = 0 if target in left_group else 1
 
+    condition = random.choice(["congruent", "incongruent", "neutral"])
+
+    if condition == "congruent":
+        flanker = random.choice(left_group if group_index==0 else right_group)
+    elif condition == "incongruent":
+        flanker = random.choice(right_group if group_index==0 else left_group)
+    else:
+        flanker = random.choice(neutral)
+
+    display = f"{flanker}   {target}   {flanker}"
+
+    win.fill((255,255,255))
+    draw_text(win, display, FONT, (0,0,0), WIDTH//2, HEIGHT//2)
+    pygame.display.update()
+
+    start = time.time()
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_LEFT, pygame.K_RIGHT):
+                response = key_map[event.key]
+                rt = time.time() - start
+                correct = (response == group_index)
+                if record:
+                    results.append([target, condition, ("LEFT" if response==0 else "RIGHT"), correct, rt])
+                return
+
+def save_results(name, age, results):
+    with open("experiment_results.csv", "a", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([name, age])
+        writer.writerow(["Target/Check","Condition","Response","Correct","RT"])
+        writer.writerows(results)
+        writer.writerow([])
+
+def end_screen():
+    win.fill((255,255,255))
+    draw_text(win, "Experiment Complete. Thank You!", TEXT, (0,0,0), WIDTH//2, HEIGHT//2)
+    pygame.display.update()
+    time.sleep(2)
+    pygame.quit()
 
 # ---------------- MAIN PROGRAM ---------------- #
 
-name, age = ask_user_info()
+name = input("Enter name: ")
+age = input("Enter age: ")
 
-instruction = True
-while instruction:
+instruction_screen()
+
+all_results = []
+
+for module in modules:
+    module_header(module["name"])
+    show_mapping(module["left_group"], module["right_group"])
+
+    # Practice Trials (not recorded)
+    for _ in range(3):
+        run_single_trial(module["left_group"], module["right_group"], module["neutral"], record=False)
+
+    # Transition
     win.fill((255,255,255))
-    draw_text(win, "Flanker Task", TEXT, (0,0,0), WIDTH//2, HEIGHT//2 - 60)
-    draw_text(win, "Press SPACE to begin", TEXT, (0,0,0), WIDTH//2, HEIGHT//2 + 20)
+    draw_text(win, "Practice Completed", TEXT, (0,0,0), WIDTH//2, HEIGHT//2 - 20)
+    draw_text(win, "Experiment Begins Now", TEXT, (0,0,0), WIDTH//2, HEIGHT//2 + 40)
     pygame.display.update()
+    time.sleep(2)
 
-    for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            instruction = False
+    # Experiment Trials (recorded)
+    for _ in range(10):
+        run_single_trial(module["left_group"], module["right_group"], module["neutral"], record=True, results=all_results)
 
-# Run Module 1 (Letters)
-results1 = run_task(letter_targets, letter_neutral, trials=10)
-
-# Run Module 2 (Shapes)
-results2 = run_task(shape_targets, shape_neutral, trials=10)
-
-# Save combined results
-save_results(name, age, results1 + results2)
-
+save_results(name, age, all_results)
 end_screen()
