@@ -50,15 +50,13 @@ pip install pygame
 ## Running the Experiment
 Ensure your virtual environment is activated, then run:
 ```bash
-python flanker_experiment.py
+python games.py
 ```
-
-(If your script has a different filename, replace `flanker_experiment.py` accordingly.)
 
 ## Output Data
 All experiment results are automatically saved to:
 ```
-experiment_results.csv
+participant_id.csv
 ```
 
 * Only experiment-phase trials are recorded (practice trials are not logged).
