@@ -216,8 +216,8 @@ def module_instructions(module):
 
 # -------------------- TRIAL FUNCTION --------------------
 def run_trial(module, record=False, results=None, forced_condition=None):
-    if random.random() < 0.05:
-        # attention check
+    # ---------------- ATTENTION CHECK ----------------
+    if forced_condition is None and random.random() < 0.05:
         screen.fill(BG_COLOR)
         x, y = random.randint(100, SCREEN_W - 100), random.randint(100, SCREEN_H - 100)
         pygame.draw.circle(screen, (255, 0, 0), (x, y), 15)
@@ -231,10 +231,11 @@ def run_trial(module, record=False, results=None, forced_condition=None):
                     if (mx - x) ** 2 + (my - y) ** 2 <= 15 ** 2:
                         clicked, rt = True, time.time() - start
                         break
-        if record:
+        if record and results is not None:
             results.append([module["name"], "ATTENTION", "", "", clicked, clicked, rt])
-        return
+        return None, None  # <- safe tuple return
 
+    # ---------------- SELECT TARGET AND CONDITION ----------------
     all_targets = module["left_group"] + module["right_group"]
     target = random.choice(all_targets)
     group_index = 0 if target in module["left_group"] else 1
@@ -247,6 +248,7 @@ def run_trial(module, record=False, results=None, forced_condition=None):
     else:
         flanker = random.choice(module["neutral"])
 
+    # ---------------- DISPLAY STIMULI ----------------
     screen.fill(BG_COLOR)
     if module["type"] == "text":
         display = f"{flanker}   {target}   {flanker}"
@@ -264,6 +266,7 @@ def run_trial(module, record=False, results=None, forced_condition=None):
         draw_mixed_triplet(target, flank_letter, module["img_dict"])
     pygame.display.flip()
 
+    # ---------------- RESPONSE COLLECTION ----------------
     start = time.time()
     while True:
         for e in pygame.event.get():
@@ -271,11 +274,10 @@ def run_trial(module, record=False, results=None, forced_condition=None):
                 response = key_map[e.key]
                 rt = time.time() - start
                 correct = (response == group_index)
-                if record:
+                if record and results is not None:
                     results.append([module["name"], target, condition, flanker,
                                     ("LEFT" if response == 0 else "RIGHT"), correct, rt])
                 return correct, rt
-
 # -------------------- MAIN --------------------
 participant = input("Enter Participant ID: ")
 all_results = []
